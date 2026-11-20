@@ -13,6 +13,25 @@
 | M5 净毛重核验 | 执行并复核净毛重核验 | `POST /api/weight` | `app/modules/weight/rules.py` | `tests/test_weight.py` |
 | M6 报关对账 | 执行并复核报关对账 | `POST /api/reconcile` | `app/modules/reconcile/rules.py` | `tests/test_reconcile.py` |
 | M7 版本封存 | 执行并复核版本封存 | `POST /api/archive` | `app/modules/archive/rules.py` | `tests/test_archive.py` |
+| A1 箱号继承 | 录入并箱两侧证据并生成继承回单、回滚旧版 | `POST /api/runs/{run_id}/receipts` | `app/modules/inheritance/rules.py` `app/store.py` | `tests/test_inheritance.py` |
+
+## 箱号继承裁决规则
+
+船开前临时并箱，两只及以上原箱货物进入同一只新箱；码头沿用旧箱号作业，船公司按重贴后的新箱号回执。回单按两侧证据能否闭合裁决：
+
+- 申报侧：来源批次须为「可封存」；每张受影响主单的件数、净重、毛重与封签必须完整落入并箱原箱，跨箱或原箱无货即 `SOURCE_CONTAINER_AMBIGUOUS`。
+- 码头侧：沿用旧箱号集合须与申报原箱集合逐箱相等（`TERMINAL_CONTAINER_MISMATCH`），且逐原箱留存封签证据（`SEAL_EVIDENCE_MISSING`）。
+- 船公司侧：回执新箱号不得仍是旧箱号（`RECEIPT_BOX_UNLINKED`）、不得与并箱范围外在役箱号冲突（`NEW_CONTAINER_COLLISION`），回执合计与原箱逐主单合计逐项对平（`RECEIPT_TOTAL_MISMATCH`）。
+- 拆并关系变化后，受影响主单整棵子树重新逐层核对件数/净重/毛重（`RECHECK_NOT_BALANCED`），不以平面求和替代。
+
+任一阻断码出现则回单状态为「阻断待处理」，阻断回单只留痕、不顶替当前已确认版本；阻断码与说明全部写在回单上，不静默确认。回单让每张主单追到唯一最终箱号。
+
+持久化保证（`inheritance_receipts` 表只追加）：
+
+- 同 `(run_id, 幂等键)` 重试原样返回已存回单，不新增第二套；同键内容冲突返回 409，绝不覆盖。
+- 同并箱事件换发新回单：旧版整行保留（含原箱封签证据）并下线，新版成为当前；`POST /api/runs/{run_id}/receipts/rollback` 可恢复指定或最近一版已确认旧版，无旧版可恢复时 422。
+- 不同并箱事件的当前回单原箱不得交叉占用，冲突 409。
+- 形状错误在写库前 422，库内旧版回单不受影响。
 
 ## 陷阱登记
 

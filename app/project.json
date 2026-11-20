@@ -12,6 +12,12 @@
     "报关对账",
     "版本封存"
   ],
+  "action_keys": [
+    "inheritance"
+  ],
+  "action_modules": [
+    "箱号继承"
+  ],
   "rule": "主提单与分提单拆并形成有向无环关系，件数和净毛重逐层守恒",
   "lane": "L3",
   "bg": "象牙纸白",
@@ -63,6 +69,25 @@
     "graph_errors": "关系错误",
     "weight_errors": "重量差异",
     "child": "子单号",
-    "classes": "危险类组合"
+    "classes": "危险类组合",
+    "merge_key": "并箱事件",
+    "receipt_id": "回单编号",
+    "idempotency_key": "幂等键",
+    "final_container": "最终箱号",
+    "source_containers": "原箱号",
+    "master_id": "主单号",
+    "seal": "封签号",
+    "terminal_seals": "码头封签",
+    "receipt_container": "回执箱号",
+    "receipt_pieces": "回执件数",
+    "receipt_net_kg": "回执净重 kg",
+    "receipt_gross_kg": "回执毛重 kg",
+    "trace_status": "追踪状态",
+    "block_codes": "阻断码",
+    "block_detail": "阻断说明",
+    "verdict": "证据裁决",
+    "sealed_at": "封签时间",
+    "receipt_no": "回执编号",
+    "current": "当前版本"
   }
 }

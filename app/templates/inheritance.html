@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="sheet-grid">
+  <section class="panel index">
+    <h2>并箱指令<sup>1</sup></h2>
+    <details class="source-input" open>
+      <summary>两侧证据录入（码头旧箱/封签 + 船公司回执新箱号）</summary>
+      <label>原箱号（逗号分隔，至少两只）</label>
+      <input id="src-boxes" value="C001,C002" style="max-width:100%;width:100%">
+      <label>码头沿用箱号（逗号分隔，须与原箱闭合）</label>
+      <input id="term-boxes" value="C001,C002" style="max-width:100%;width:100%">
+      <label>原箱封签 JSON（逐箱留存，更换箱号不丢封签证据）</label>
+      <textarea id="term-seals">[{"container":"C001","seal":"SEAL-C001-01"},{"container":"C002","seal":"SEAL-C002-07"}]</textarea>
+      <label>船公司回执编号</label>
+      <input id="rcp-no" value="RCP-SLINE-20261120-01" style="max-width:100%;width:100%">
+      <label>回执新箱号（重贴后）</label>
+      <input id="rcp-box" value="C901" style="max-width:100%;width:100%">
+      <div class="grid-3">
+        <div><label>回执件数</label><input id="rcp-pieces" value="80"></div>
+        <div><label>回执净重 kg</label><input id="rcp-net" value="800"></div>
+        <div><label>回执毛重 kg</label><input id="rcp-gross" value="880"></div>
+      </div>
+      <button id="gen-receipt">生成继承回单</button>
+      <output id="rcp-message" aria-live="polite"></output>
+    </details>
+    <section class="panel" style="margin-top:12px">
+      <h2>阻断码说明</h2>
+      <div class="legend">来源歧义 / 封签缺失 / 回执脱链 / 重量未对平均写明阻断，不静默确认。</div>
+    </section>
+  </section>
+
+  <section class="panel data-panel">
+    <h2>主单追踪（件数·净重·毛重·封签 → 唯一最终箱号）<sup>2</sup><small>{{ view.rows|length }} 条</small></h2>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>主单号</th><th>原箱号</th><th>件数</th><th>净重 kg</th><th>毛重 kg</th>
+          <th>原箱封签</th><th>最终箱号</th><th>回单编号</th><th>追踪状态</th><th>阻断码</th>
+        </tr></thead>
+        <tbody>
+        {% for row in view.rows %}
+          <tr>
+            <td class="num">{{ row.master_id }}</td>
+            <td class="num">{{ row.source_containers|join(',') }}</td>
+            <td class="num">{{ row.pieces }}</td>
+            <td class="num">{{ row.net_kg }}</td>
+            <td class="num">{{ row.gross_kg }}</td>
+            <td class="num">{% for s in row.terminal_seals %}{{ s.container }}:{{ s.seal }}{% if not loop.last %} / {% endif %}{% endfor %}</td>
+            <td class="num"><b>{{ row.final_container }}</b></td>
+            <td class="num">{{ row.receipt_no }}</td>
+            <td class="num {% if row.trace_status!='已追踪' %}fail{% endif %}">{{ row.trace_status }}</td>
+            <td class="num">{{ row.block_codes|join(',') }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="10">暂无生效回单，请在左侧录入并箱指令后生成。</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="right-column">
+    <section class="panel stamps">
+      <h2>生效回单</h2>
+      <div class="stamp">{{ '已确认 ' if view.metrics['生效回单'] and not view.metrics['阻断主单行'] else ('阻断待处理' if view.metrics['阻断主单行'] else '未生成') }}</div>
+      <div class="checksum">生效 {{ view.metrics['生效回单'] }} 套 · 历史版本 {{ view.metrics['历史版本'] }} · 阻断行 {{ view.metrics['阻断主单行'] }}</div>
+      <a href="/api/export/{{ state.manifest.run_id }}">下载封存件（含回单）</a>
+    </section>
+    <section class="panel">
+      <h2>回单版本链<sup>3</sup></h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>回单编号</th><th>并箱事件</th><th>最终箱号</th><th>状态</th><th>当前</th><th>时间</th></tr></thead>
+          <tbody>
+          {% for h in view.history %}
+            <tr>
+              <td class="num">{{ h.receipt_id }}</td><td class="num">{{ h.merge_key }}</td>
+              <td class="num">{{ h.final_container }}</td>
+              <td class="num {% if h.status!='已确认' %}fail{% endif %}">{{ h.status }}</td>
+              <td class="num">{{ '是' if h.current else '历史' }}</td>
+              <td class="num">{{ h.generated_at[11:19] }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6">暂无回单。</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button id="rollback-btn" {% if not view.history %}disabled{% endif %}>恢复上一版已确认回单</button>
+    </section>
+    <section class="panel">
+      <h2>来源批次状态</h2>
+      <div class="checkline"><b>封存状态</b><span class="{% if state.archive.status!='可封存' %}fail{% endif %}">{{ state.archive.blocked }} 项阻断</span><span>{{ state.archive.status }}</span></div>
+      <div class="checkline"><b>DOCUMENT</b><span>{{ state.manifest.run_id }}</span><span>{{ state.manifest.rule_version }}</span></div>
+    </section>
+  </div>
+</div>
+{% endblock %}

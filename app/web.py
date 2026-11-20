@@ -13,4 +13,11 @@ def render(request:Request,key):
         state=store.get(DB_PATH,run_id)
     else:
         state=store.save(DB_PATH,evaluate({'dataset':request.query_params.get('dataset','dirty')}))
-    return templates.TemplateResponse(request=request,name=f'{key}.html',context={'meta':META,'key':key,'state':state,'view':state['views'][key]})
+    if key in state['views']:
+        view=state['views'][key]
+    elif key=='inheritance':
+        from app.modules.inheritance.view import trace_view
+        view=trace_view(state,store.current_receipts(DB_PATH,state['manifest']['run_id']))
+    else:
+        view={'title':key,'rows':[],'metrics':{}}
+    return templates.TemplateResponse(request=request,name=f'{key}.html',context={'meta':META,'key':key,'state':state,'view':view})
